@@ -569,7 +569,7 @@ void generate_insert_code(const string& table_names, vector< pair<string, string
 }
 
 // 获取表的字段以及类型并生成bean
-bool spy_table(string host, string user, string pwd, string db_name, int db_port, const string& table_name) {
+void spy_table(string host, string user, string pwd, string db_name, int db_port, const string& table_name) {
     int key_field_index;
     vector< pair<string, string> > vec_field_name_type;
     vec_field_name_type.clear();
@@ -580,6 +580,7 @@ bool spy_table(string host, string user, string pwd, string db_name, int db_port
 
     if(mysql_query(connection, sql.c_str())) {
         cout << "error:" << mysql_error(connection) << endl;
+        exit(1);
     } else {
         // 获取字段数量
         int field_count = mysql_field_count(connection);
