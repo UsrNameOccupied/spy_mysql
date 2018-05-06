@@ -292,15 +292,16 @@ void generate_select_all_code(const string& table_names, vector< pair<string, st
     ostringstream oss;
     vector< pair<string, string> >::iterator map_field_name_type_it;
 
-    oss << "\nvoid select_all( vector<"
+    oss << "\nint select_all( vector<"
         << table_names
         << ">& vec_data_set) {\n";
 
-    oss << "  string sql = \"select * from " + table_names + "\";\n";
+    oss << "  string sql = \"select * from " + table_names + "\";\n\n";
     oss << "  cout << sql << endl;\n";
 
     oss << "\n  if(mysql_query(connection, sql.c_str())) {\n"
         << "    cout << \"error:\" << mysql_error(connection) << endl;\n"
+        << "    return -1;\n"
         << "  } else {\n"
         << "    // 获取结果集\n"
         << "    result = mysql_use_result(connection);\n"
@@ -339,7 +340,8 @@ void generate_select_all_code(const string& table_names, vector< pair<string, st
 
     oss << "      }\n"
         << "    }\n"
-        << "  }\n"
+        << "  }\n\n"
+        << "  return 0;\n"
         << "}\n";
 
     cout << oss.str() << endl;
@@ -349,7 +351,7 @@ void generate_select_code(const string& table_names, vector< pair<string, string
     ostringstream oss;
     vector< pair<string, string> >::iterator map_field_name_type_it;
 
-    oss << "\nvoid select( const "
+    oss << "\nint select( const "
         << table_names
         << "& cond, "
         << "vector<"
@@ -364,14 +366,14 @@ void generate_select_code(const string& table_names, vector< pair<string, string
         string type = type_convert(map_field_name_type_it->second);
 
         if(type.compare("string") == 0) {
-            oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+            oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                 << "    sql << \"" << map_field_name_type_it->first << "=\""
                 << "    << \"\\\"\" << cond.get_" << map_field_name_type_it->first << "() << \"\\\"\" << \" and \";\n"
                 << "  }\n";
 
         } else {
 
-            oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+            oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                 << "    sql << \"" << map_field_name_type_it->first << "=\""
                 << "    << cond.get_" << map_field_name_type_it->first << "() << \" and \";\n"
                 << "  }\n";
@@ -382,14 +384,20 @@ void generate_select_code(const string& table_names, vector< pair<string, string
 
     oss << "\n  string tmp_content = sql.str();\n"
         << "  size_t index = tmp_content.find_last_of(\"and\");\n"
-        << "  tmp_content = (index !=  string::npos) ? tmp_content.substr(0, index - strlen(\"and\")) : tmp_content;\n"
-        << "  sql.str(\"\");\n"
-        << "  sql << tmp_content << \" \";\n\n";
+        << "  if(index != string::npos) {\n"
+        << "    tmp_content = tmp_content.substr(0, index - (strlen(\"and\") - 1));\n"
+        << "    sql.str(\"\");\n"
+        << "    sql << tmp_content << \" \";\n"
+        << "  } else {\n"
+        << "    cout << \"sql error,please check jce\\\'s \\\'field_set_flag\\\'\" << endl;\n"
+        << "    return -1;\n"
+        << "  }\n";
 
-    oss << "  cout << sql.str() << endl;\n";
+    oss << "\n  cout << sql.str() << endl;\n";
         
     oss << "  if(mysql_query(connection, sql.str().c_str())) {\n"
         << "    cout << \"error:\" << mysql_error(connection) << endl;\n"
+        << "    return -1;\n"
         << "  } else {\n"
         << "    // 获取结果集\n"
         << "    result = mysql_use_result(connection);\n"
@@ -429,7 +437,8 @@ void generate_select_code(const string& table_names, vector< pair<string, string
 
     oss << "      }\n"
         << "    }\n"
-        << "  }\n"
+        << "  }\n\n"
+        << "  return 0;\n"
         << "}\n";
 
     cout << oss.str() << endl;
@@ -439,7 +448,7 @@ void generate_update_code(const string& table_names, int key_field_index, vector
     ostringstream oss;
     vector< pair<string, string> >::iterator map_field_name_type_it;
 
-    oss << "\nvoid update( const "
+    oss << "\nint update( const "
         << table_names
         << "& cond) {\n";
 
@@ -452,13 +461,13 @@ void generate_update_code(const string& table_names, int key_field_index, vector
 
         if(field_index != key_field_index) {
             if(type.compare("string") == 0) {
-                oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+                oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                     << "    sql << \"" << map_field_name_type_it->first << "=\""
                     << "    << \"\\\"\" << cond.get_" << map_field_name_type_it->first << "() << \"\\\"\" << \" , \";\n"
                     << "  }\n";
 
             } else {
-                oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+                oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                     << "    sql << \"" << map_field_name_type_it->first << "=\""
                     << "    << cond.get_" << map_field_name_type_it->first << "() << \" , \";\n"
                     << "  }\n";
@@ -470,9 +479,14 @@ void generate_update_code(const string& table_names, int key_field_index, vector
 
     oss << "\n  string tmp_content = sql.str();\n"
         << "  size_t index = tmp_content.find_last_of(\",\");\n"
-        << "  tmp_content = (index !=  string::npos) ? tmp_content.substr(0, index - strlen(\",\")) : tmp_content;\n"
-        << "  sql.str(\"\");\n"
-        << "  sql << tmp_content << \" \";\n\n";
+        << "  if(index != string::npos) {\n"
+        << "    tmp_content = tmp_content.substr(0, index - (strlen(\",\") - 1));\n"
+        << "    sql.str(\"\");\n"
+        << "    sql << tmp_content << \" \";\n"
+        << "  } else {\n"
+        << "    cout << \"sql error,please check jce\\\'s \\\'field_set_flag\\\'\" << endl;\n"
+        << "    return -1;\n"
+        << "  }\n\n";
 
     field_index = 0;
 
@@ -492,13 +506,15 @@ void generate_update_code(const string& table_names, int key_field_index, vector
         field_index++;
     }
 
-    oss << "  cout << sql.str() << endl;\n";
+    oss << "\n  cout << sql.str() << endl;\n";
  
     oss << "\n  if(mysql_query(connection, sql.str().c_str())) {\n"
         << "    cout << \"error: \" << mysql_error(connection) << endl;\n"
+        << "    return -1;\n"
         << "  } else {\n"
         << "    cout << \"ok!\" << endl;\n"
-        << "  }\n"
+        << "  }\n\n"
+        << "  return 0;\n"
         << "}\n";
 
     cout << oss.str() << endl;
@@ -508,7 +524,7 @@ void generate_insert_code(const string& table_names, vector< pair<string, string
     ostringstream oss;
     vector< pair<string, string> >::iterator map_field_name_type_it;
 
-    oss << "\nvoid insert( const "
+    oss << "\nint insert( const "
         << table_names
         << "& cond) {\n";
 
@@ -526,11 +542,17 @@ void generate_insert_code(const string& table_names, vector< pair<string, string
         field_index++;
     }
 
+
     oss << "\n  string tmp_content = sql.str();\n"
         << "  size_t index = tmp_content.find_last_of(\",\");\n"
-        << "  tmp_content = (index !=  string::npos) ? tmp_content.substr(0, index) : tmp_content;\n"
-        << "  sql.str(\"\");\n"
-        << "  sql << tmp_content << \") values (\";\n\n";
+        << "  if(index != string::npos) {\n"
+        << "    tmp_content = tmp_content.substr(0, index - (strlen(\",\") - 1));\n"
+        << "    sql.str(\"\");\n"
+        << "    sql << tmp_content << \") values (\";\n"
+        << "  } else {\n"
+        << "    cout << \"sql error,please check jce\\\'s \\\'field_set_flag\\\'\" << endl;\n"
+        << "    return -1;\n"
+        << "  }\n\n";
 
     field_index = 0;
 
@@ -538,11 +560,11 @@ void generate_insert_code(const string& table_names, vector< pair<string, string
         string type = type_convert(map_field_name_type_it->second);
 
         if(type.compare("string") == 0) {
-            oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+            oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                 << "    sql << \"\\\"\" << cond.get_" << map_field_name_type_it->first << "() << \"\\\"\" << \" , \";\n"
                 << "  }\n";
         } else {
-            oss << "  if(cond.get_field_set_flag(" << field_index << ")) {\n"
+            oss << "\n  if(cond.get_field_set_flag(" << field_index << ")) {\n"
                 << "    sql << cond.get_" << map_field_name_type_it->first << "() << \" , \";\n"  
                 << "  }\n";
         }
@@ -552,17 +574,24 @@ void generate_insert_code(const string& table_names, vector< pair<string, string
         
     oss << "\n  tmp_content = sql.str();\n"
         << "  index = tmp_content.find_last_of(\",\");\n"
-        << "  tmp_content = (index !=  string::npos) ? tmp_content.substr(0, index) : tmp_content;\n"
-        << "  sql.str(\"\");\n"
-        << "  sql << tmp_content << \")\";\n\n";
+        << "  if(index != string::npos) {\n"
+        << "    tmp_content = tmp_content.substr(0, index - (strlen(\",\") - 1));\n"
+        << "    sql.str(\"\");\n"
+        << "    sql << tmp_content << \")\";\n"
+        << "  } else {\n"
+        << "    cout << \"sql error,please check jce\\\'s \\\'field_set_flag\\\'\" << endl;\n"
+        << "    return -1;\n"
+        << "  }\n";
 
-    oss << "  cout << sql.str() << endl;\n";
+    oss << "\n  cout << sql.str() << endl;\n";
     
     oss << "\n  if(mysql_query(connection, sql.str().c_str())) {\n"
         << "    cout << \"error: \" << mysql_error(connection) << endl;\n"
+        << "    return -1;\n"
         << "  } else {\n"
         << "    cout << \"ok!\" << endl;\n"
-        << "  }\n"
+        << "  }\n\n"
+        << "  return 0;\n"
         << "}\n";
 
     cout << oss.str() << endl;
